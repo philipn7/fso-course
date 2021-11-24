@@ -1,19 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Filter from './components/Filter';
+import Message from './components/Message';
 import PersonForm from './components/PersonForm';
 import Persons from './components/Persons';
+import noteService from './services/notes';
 
 const App = () => {
-  const [persons, setPersons] = useState([
-    { name: 'Arto Hellas', number: '040-123456', id: 1 },
-    { name: 'Ada Lovelace', number: '39-44-5323523', id: 2 },
-    { name: 'Dan Abramov', number: '12-43-234345', id: 3 },
-    { name: 'Mary Poppendieck', number: '39-23-6423122', id: 4 },
-  ]);
+  const [persons, setPersons] = useState([]);
 
   const [newName, setNewName] = useState('');
   const [newNumber, setNumber] = useState(0);
   const [filter, setFilter] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    noteService.getAll().then((notes) => {
+      setPersons(notes);
+    });
+  }, []);
 
   const nameChangeHandler = (event) => {
     setNewName(event.target.value);
@@ -34,16 +38,34 @@ const App = () => {
         return person.name === newName;
       })
     ) {
-      setPersons([...persons, { name: newName, number: newNumber, id: persons.length + 1 }]);
-      setNewName('');
+      const newNote = { name: newName, number: newNumber };
+      noteService.create(newNote).then((res) => {
+        setPersons([...persons, res]);
+        setNewName('');
+
+        setErrorMessage(`Added ${res.name}`);
+        setTimeout(() => {
+          setErrorMessage('');
+        }, 5000);
+      });
     } else {
       window.alert(`${newName} already exists in phonebook`);
+    }
+  };
+
+  const deleteHandler = (id, name) => {
+    if (window.confirm(`Delete ${name} ?`)) {
+      noteService.deleteById(id).then((entry) => {
+        // console.log('deleted: ', entry);
+        setPersons(persons.filter((person) => person.id !== id));
+      });
     }
   };
 
   return (
     <div>
       <h2>Phonebook</h2>
+      <Message msg={errorMessage} />
 
       <Filter filter={filter} filterHandler={filterHandler} />
 
@@ -59,7 +81,7 @@ const App = () => {
 
       <h2>Numbers</h2>
 
-      <Persons persons={persons} filter={filter} />
+      <Persons persons={persons} filter={filter} deleteHandler={deleteHandler} />
     </div>
   );
 };
